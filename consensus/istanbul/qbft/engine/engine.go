@@ -2,6 +2,7 @@ package qbftengine
 
 import (
 	"bytes"
+	"encoding/binary"
 	"math/big"
 	"time"
 
@@ -74,7 +75,9 @@ func writeCommittedSeals(committedSeals [][]byte) ApplyQBFTExtra {
 // writeRoundNumber writes the extra-data field of a block header with given round.
 func writeRoundNumber(round *big.Int) ApplyQBFTExtra {
 	return func(qbftExtra *types.QBFTExtra) error {
-		qbftExtra.Round = uint32(round.Uint64())
+		a := make([]byte, 4)
+		binary.BigEndian.PutUint32(a, uint32(round.Uint64()))
+		qbftExtra.Round = a
 		return nil
 	}
 }
@@ -409,7 +412,7 @@ func (e *Engine) Signers(header *types.Header) ([]common.Address, error) {
 		return []common.Address{}, err
 	}
 	committedSeal := extra.CommittedSeal
-	proposalSeal := PrepareCommittedSeal(header, extra.Round)
+	proposalSeal := PrepareCommittedSeal(header, binary.BigEndian.Uint32(extra.Round))
 
 	var addrs []common.Address
 	// 1. Get committed seals from current header
@@ -504,7 +507,7 @@ func getExtra(header *types.Header) (*types.QBFTExtra, error) {
 			VanityData:    vanity,
 			Validators:    []common.Address{},
 			CommittedSeal: [][]byte{},
-			Round:         0,
+			Round:         make([]byte, 4),
 			Vote:          nil,
 		}, nil
 	}
